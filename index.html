@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>3D Tennis Ultra Smash Like</title>
+<style>
+body { margin:0; overflow:hidden; }
+canvas { display:block; }
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+
+<script>
+// =====================
+// SCENE
+// =====================
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1e7a3a);
+
+const camera = new THREE.PerspectiveCamera(
+  75, window.innerWidth/window.innerHeight, 0.1, 1000
+);
+
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// =====================
+// COURT (3D plane)
+// =====================
+const court = new THREE.Mesh(
+  new THREE.PlaneGeometry(20, 10),
+  new THREE.MeshBasicMaterial({color:0x2ecc71})
+);
+court.rotation.x = -Math.PI/2;
+scene.add(court);
+
+// NET
+const net = new THREE.Mesh(
+  new THREE.BoxGeometry(0.2, 2, 10),
+  new THREE.MeshBasicMaterial({color:0xffffff})
+);
+net.position.y = 1;
+scene.add(net);
+
+// =====================
+// PLAYER / AI
+// =====================
+const player = new THREE.Mesh(
+  new THREE.BoxGeometry(0.5,1,1),
+  new THREE.MeshBasicMaterial({color:0x0000ff})
+);
+player.position.set(-8,0.5,0);
+scene.add(player);
+
+const ai = new THREE.Mesh(
+  new THREE.BoxGeometry(0.5,1,1),
+  new THREE.MeshBasicMaterial({color:0xff0000})
+);
+ai.position.set(8,0.5,0);
+scene.add(ai);
+
+// =====================
+// BALL
+// =====================
+const ball = new THREE.Mesh(
+  new THREE.SphereGeometry(0.2,16,16),
+  new THREE.MeshBasicMaterial({color:0xffff00})
+);
+scene.add(ball);
+
+let ballVel = {x:0.2, y:0.2, z:0};
+
+// =====================
+// CAMERA (Wii U style angle)
+// =====================
+camera.position.set(0,8,12);
+camera.lookAt(0,0,0);
+
+// =====================
+// INPUT
+// =====================
+const keys = {};
+document.addEventListener("keydown", e=>keys[e.key]=true);
+document.addEventListener("keyup", e=>keys[e.key]=false);
+
+// =====================
+// RESET BALL
+// =====================
+function reset(dir=1){
+  ball.position.set(0,1,0);
+  ballVel.x = 0.3 * dir;
+  ballVel.y = 0.2;
+  ballVel.z = (Math.random()-0.5)*0.2;
+}
+
+// =====================
+// COLLISION
+// =====================
+function hit(p){
+  return Math.abs(ball.position.x - p.position.x) < 0.6 &&
+         Math.abs(ball.position.z - p.position.z) < 1;
+}
+
+// =====================
+// LOOP
+// =====================
+function animate(){
+
+  // PLAYER MOVE (Wii style court movement)
+  if(keys["ArrowUp"]) player.position.z -= 0.2;
+  if(keys["ArrowDown"]) player.position.z += 0.2;
+
+  player.position.z = Math.max(-4, Math.min(4, player.position.z));
+
+  // AI FOLLOW BALL
+  ai.position.z += (ball.position.z - ai.position.z) * 0.05;
+
+  // BALL PHYSICS (3D)
+  ball.position.x += ballVel.x;
+  ball.position.y += ballVel.y;
+  ball.position.z += ballVel.z;
+
+  // gravity
+  ballVel.y -= 0.01;
+
+  // ground bounce
+  if(ball.position.y < 0.2){
+    ball.position.y = 0.2;
+    ballVel.y *= -0.8;
+  }
+
+  // wall bounce
+  if(ball.position.z > 5 || ball.position.z < -5){
+    ballVel.z *= -1;
+  }
+
+  // PLAYER HIT
+  if(hit(player) && ballVel.x < 0){
+    ballVel.x = 0.3;
+    ballVel.y = 0.2;
+    ballVel.z = (ball.position.z - player.position.z) * 0.1;
+  }
+
+  // AI HIT
+  if(hit(ai) && ballVel.x > 0){
+    ballVel.x = -0.3;
+    ballVel.y = 0.2;
+    ballVel.z = (ball.position.z - ai.position.z) * 0.1;
+  }
+
+  // SCORE RESET
+  if(ball.position.x < -10) reset(1);
+  if(ball.position.x > 10) reset(-1);
+
+  renderer.render(scene,camera);
+  requestAnimationFrame(animate);
+}
+
+reset(1);
+animate();
+</script>
+
+</body>
+</html>
