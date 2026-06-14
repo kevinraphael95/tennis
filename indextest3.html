@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Mario Tennis Ultra Smash</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#000;overflow:hidden;font-family:'Arial Black',Arial,sans-serif;}
+canvas{display:block;}
+#ui{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;}
+
+/* ── MENU ─────────────────────────────────────────── */
+#menu{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:flex-start;
+  padding-top:clamp(12px,3vh,28px);
+  pointer-events:all;overflow:hidden;
+  background:linear-gradient(180deg,#0a006e 0%,#1400a8 18%,#0033bb 38%,#003d14 65%,#001a08 100%);
+}
+#menu-bokeh{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+.bk{position:absolute;border-radius:50%;filter:blur(18px);animation:bkFloat linear infinite;}
+@keyframes bkFloat{0%{transform:translateY(0) scale(1);}50%{transform:translateY(-22px) scale(1.07);}100%{transform:translateY(0) scale(1);}}
+
+#logo-area{position:relative;text-align:center;margin-bottom:clamp(8px,2vh,18px);z-index:2;}
+#logo-img{width:min(460px,80vw);filter:drop-shadow(0 2px 18px rgba(255,120,0,.8)) drop-shadow(0 0 40px rgba(255,200,0,.35));animation:logoBob 2.8s ease-in-out infinite;}
+@keyframes logoBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-7px);}}
+#logo-fallback{font-size:clamp(26px,5vw,52px);color:#FFD700;text-shadow:3px 3px 0 #8B0000,-3px 3px 0 #8B0000,3px -3px 0 #8B0000,-3px -3px 0 #8B0000,0 0 30px rgba(255,150,0,.5);line-height:1.1;display:none;}
+
+/* ── PANEL ── */
+.menu-panel{
+  background:rgba(0,0,40,.72);
+  border:2.5px solid rgba(255,255,255,.22);
+  border-radius:18px;backdrop-filter:blur(8px);
+  padding:10px 16px 10px;margin-bottom:10px;
+  width:min(700px,94vw);z-index:2;
+}
+.sec-label{
+  color:rgba(255,255,255,.5);font-size:clamp(8px,1.2vw,10px);
+  letter-spacing:4px;margin-bottom:7px;text-align:center;text-transform:uppercase;
+}
+
+/* ── CHAR GRID ── */
+.char-grid{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;}
+.char-card{
+  width:clamp(62px,8.5vw,90px);padding:7px 6px 5px;
+  border:2.5px solid rgba(255,255,255,.15);border-radius:14px;
+  cursor:pointer;text-align:center;
+  background:rgba(0,0,50,.6);
+  transition:all .15s cubic-bezier(.34,1.56,.64,1);position:relative;overflow:hidden;
+}
+.char-card::before{content:'';position:absolute;inset:0;border-radius:13px;
+  background:linear-gradient(180deg,rgba(255,255,255,.08) 0%,transparent 60%);pointer-events:none;}
+.char-card img{
+  width:clamp(40px,6.5vw,64px);height:clamp(40px,6.5vw,64px);object-fit:contain;
+  display:block;margin:0 auto;
+  animation:idleBob 1.8s ease-in-out infinite;
+}
+@keyframes idleBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-4px);}}
+.char-card:hover{border-color:#FFD700;background:rgba(255,215,0,.18);transform:translateY(-6px) scale(1.08);box-shadow:0 10px 28px rgba(255,215,0,.45);}
+.char-card.sel{border-color:#FFD700;background:rgba(255,215,0,.22);transform:translateY(-5px) scale(1.07);box-shadow:0 8px 24px rgba(255,215,0,.5);}
+.char-card.sel img{animation:selBob .9s ease-in-out infinite;}
+@keyframes selBob{0%,100%{transform:translateY(0) scale(1);}50%{transform:translateY(-6px) scale(1.04);}}
+.char-name{color:#fff;font-size:clamp(7px,1vw,10px);font-weight:900;letter-spacing:.5px;margin-top:3px;}
+.char-type{color:#FFD700;font-size:clamp(6px,.8vw,8px);letter-spacing:.3px;}
+.sel-crown{position:absolute;top:-2px;left:50%;transform:translateX(-50%);font-size:12px;display:none;}
+.char-card.sel .sel-crown{display:block;}
+
+/* ── COURT BTNS ── */
+.court-row{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;}
+.court-btn{
+  padding:6px 14px;border:2px solid rgba(255,255,255,.18);border-radius:20px;
+  color:rgba(255,255,255,.65);font-family:'Arial Black',Arial,sans-serif;
+  font-size:clamp(8px,1.2vw,11px);cursor:pointer;
+  background:rgba(255,255,255,.05);transition:all .15s;
+  display:flex;align-items:center;gap:5px;
+}
+.court-btn:hover,.court-btn.sel{border-color:#FFD700;color:#FFD700;background:rgba(255,215,0,.14);}
+.court-dot{width:10px;height:10px;border-radius:50%;border:1.5px solid rgba(255,255,255,.3);}
+.court-btn.sel .court-dot{border-color:#FFD700;}
+
+/* ── DIFF ── */
+.diff-row{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;}
+.diff-btn{
+  padding:6px 18px;border:2px solid rgba(255,255,255,.18);border-radius:20px;
+  color:rgba(255,255,255,.55);font-family:'Arial Black',Arial,sans-serif;
+  font-size:clamp(8px,1.2vw,11px);cursor:pointer;
+  background:rgba(255,255,255,.04);transition:all .15s;
+}
+.diff-btn:hover{border-color:rgba(255,215,0,.5);color:rgba(255,215,0,.8);}
+.diff-btn.sel{border-color:#FFD700;color:#FFD700;background:rgba(255,215,0,.14);}
+
+/* ── MAIN BTNS ── */
+.btn-row{display:flex;gap:12px;justify-content:center;z-index:2;margin-top:2px;}
+.mbtn{
+  padding:12px 36px;border-radius:50px;
+  color:#fff;font-family:'Arial Black',Arial,sans-serif;
+  font-size:clamp(13px,1.8vw,17px);cursor:pointer;
+  letter-spacing:1px;border:none;
+  position:relative;overflow:hidden;
+  transition:transform .1s,filter .1s,box-shadow .1s;
+  pointer-events:all;
+}
+.mbtn::before{content:'';position:absolute;inset:0;border-radius:inherit;
+  background:linear-gradient(180deg,rgba(255,255,255,.25) 0%,transparent 50%);}
+.mbtn::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;border-radius:0 0 50px 50px;background:rgba(0,0,0,.25);}
+.mbtn.red{background:linear-gradient(180deg,#FF2244,#CC0022);box-shadow:0 6px 20px rgba(200,0,30,.5),0 0 0 2.5px #FF4466;}
+.mbtn.blue{background:linear-gradient(180deg,#2266EE,#0033BB);box-shadow:0 6px 20px rgba(0,50,200,.5),0 0 0 2.5px #4488FF;}
+.mbtn:hover{transform:scale(1.07) translateY(-3px);filter:brightness(1.15);}
+.mbtn:active{transform:scale(.96) translateY(1px);}
+
+/* ── HUD ── */
+#hud{position:absolute;top:0;left:0;width:100%;padding:8px;display:none;pointer-events:none;}
+#scorebox{
+  display:flex;align-items:stretch;
+  background:rgba(0,0,0,.85);
+  border:2.5px solid #FFD700;border-radius:22px;
+  padding:5px 16px;margin:0 auto;width:fit-content;
+  box-shadow:0 4px 24px rgba(0,0,0,.6),0 0 0 1px rgba(255,215,0,.15);
+}
+.s-side{text-align:center;padding:2px 12px;}
+.s-name{color:#7FD4FF;font-size:clamp(8px,1.3vw,12px);letter-spacing:2px;}
+.s-pts{color:#FFD700;font-size:clamp(22px,3.8vw,40px);font-weight:900;line-height:1;text-shadow:0 0 14px rgba(255,215,0,.6);}
+.s-info{color:rgba(255,255,255,.6);font-size:clamp(8px,1.1vw,11px);}
+.s-sets{display:flex;gap:4px;justify-content:center;margin-top:3px;}
+.s-pip{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.25);transition:all .3s;}
+.s-pip.w{background:#FFD700;border-color:#FFD700;box-shadow:0 0 6px rgba(255,215,0,.7);}
+.s-div{color:#FFD700;font-size:clamp(16px,2.2vw,26px);font-weight:900;padding:0 12px;display:flex;align-items:center;
+  border-left:1px solid rgba(255,215,0,.25);border-right:1px solid rgba(255,215,0,.25);}
+
+/* ── POWER BAR ── */
+#pbar-wrap{
+  position:absolute;bottom:60px;left:50%;transform:translateX(-50%);
+  display:none;flex-direction:column;align-items:center;gap:4px;
+  background:rgba(0,0,0,.78);border:2px solid rgba(255,255,255,.2);
+  border-radius:12px;padding:8px 16px;
+}
+#pbar-label{color:#FFD700;font-size:9px;letter-spacing:3px;}
+#pbar-bg{width:180px;height:14px;background:rgba(255,255,255,.1);border-radius:7px;overflow:hidden;border:1px solid rgba(255,255,255,.1);}
+#pbar-fill{height:100%;width:0%;border-radius:7px;transition:background .2s;}
+
+/* ── MESSAGES ── */
+#msg{
+  position:absolute;top:46%;left:50%;transform:translate(-50%,-50%);
+  font-size:clamp(24px,5.5vw,62px);font-weight:900;text-align:center;
+  color:#FFD700;white-space:nowrap;
+  text-shadow:4px 4px 0 rgba(0,0,0,.9),0 0 30px rgba(255,150,0,.8);
+  -webkit-text-stroke:2px rgba(0,0,0,.5);
+  opacity:0;transition:opacity .2s;pointer-events:none;
+}
+#smash-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .12s;}
+
+/* ── GAME OVER ── */
+#gameover{
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse at center,rgba(0,0,60,.97) 0%,rgba(0,0,0,.98) 100%);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  pointer-events:all;
+}
+#gameover h2{font-size:clamp(36px,7vw,80px);color:#FFD700;
+  text-shadow:0 0 40px #FF6B00,4px 4px 0 rgba(0,0,0,.8);margin-bottom:12px;
+  animation:victPulse 1.5s ease-in-out infinite;}
+@keyframes victPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.04);}}
+.go-sub{font-size:clamp(18px,2.8vw,32px);color:#fff;margin-bottom:8px;}
+.go-stats{color:rgba(255,255,255,.45);font-size:clamp(10px,1.5vw,14px);margin-bottom:32px;letter-spacing:1px;}
+.go-btns{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;}
+
+/* ── COMBO ── */
+#combo-disp{
+  position:absolute;top:80px;right:16px;
+  color:#FFD700;font-size:clamp(14px,2.2vw,26px);font-weight:900;
+  text-shadow:0 0 16px rgba(255,215,0,.7);
+  opacity:0;transition:opacity .2s;pointer-events:none;text-align:right;
+}
+
+/* ── CTRL HINT ── */
+#ctrl-hint{
+  position:absolute;bottom:6px;left:50%;transform:translateX(-50%);
+  color:rgba(255,255,255,.3);font-size:clamp(7px,1.1vw,10px);
+  white-space:nowrap;letter-spacing:.5px;pointer-events:none;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+
+<!-- ══ MENU ══ -->
+<div id="menu">
+  <div id="menu-bokeh"></div>
+
+  <div id="logo-area">
+    <img id="logo-img"
+      src="https://mario.wiki.gallery/images/thumb/7/7b/MTUS_logo.png/400px-MTUS_logo.png"
+      onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='block'"
+      alt="Mario Tennis Ultra Smash">
+    <div id="logo-fallback">MARIO TENNIS<br><span style="font-size:.55em;color:#fff;letter-spacing:6px;">ULTRA SMASH</span></div>
+  </div>
+
+  <div class="menu-panel">
+    <div class="sec-label">✦ Choisir un personnage ✦</div>
+    <div class="char-grid" id="charGrid"></div>
+  </div>
+
+  <div class="menu-panel" style="padding:8px 16px 8px;">
+    <div class="sec-label">✦ Terrain ✦</div>
+    <div class="court-row" id="courtRow"></div>
+  </div>
+
+  <div class="menu-panel" style="padding:8px 16px 8px;">
+    <div class="sec-label">✦ Difficulté ✦</div>
+    <div class="diff-row" id="diffRow">
+      <div class="diff-btn sel" data-d="easy">⭐ FACILE</div>
+      <div class="diff-btn" data-d="normal">⭐⭐ NORMAL</div>
+      <div class="diff-btn" data-d="hard">⭐⭐⭐ DIFFICILE</div>
+      <div class="diff-btn" data-d="ultra">⚡ ULTRA</div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="mbtn red" id="btnPlay">▶ JOUER</button>
+    <button class="mbtn blue" id="btn2P">👥 2 JOUEURS</button>
+  </div>
+</div>
+
+<!-- ══ HUD ══ -->
+<div id="hud">
+  <div id="scorebox">
+    <div class="s-side">
+      <div class="s-name" id="n1">MARIO</div>
+      <div class="s-pts" id="pt1">0</div>
+      <div class="s-info" id="g1">Jeux: 0</div>
+      <div class="s-sets" id="set1"></div>
+    </div>
+    <div class="s-div">VS</div>
+    <div class="s-side">
+      <div class="s-name" id="n2">CPU</div>
+      <div class="s-pts" id="pt2">0</div>
+      <div class="s-info" id="g2">Jeux: 0</div>
+      <div class="s-sets" id="set2"></div>
+    </div>
+  </div>
+</div>
+
+<div id="pbar-wrap">
+  <div id="pbar-label">⚡ PUISSANCE</div>
+  <div id="pbar-bg"><div id="pbar-fill"></div></div>
+</div>
+
+<div id="msg"></div>
+<div id="combo-disp"></div>
+<div id="smash-flash"></div>
+
+<!-- ══ GAME OVER ══ -->
+<div id="gameover">
+  <h2 id="go-title">VICTOIRE!</h2>
+  <div class="go-sub" id="go-sub"></div>
+  <div class="go-stats" id="go-stats"></div>
+  <div class="go-btns">
+    <button class="mbtn red" id="btnReplay">🔄 REJOUER</button>
+    <button class="mbtn blue" id="btnMenu">🏠 MENU</button>
+  </div>
+</div>
+
+<div id="ctrl-hint">⬆⬇⬅➡ / WASD — DÉPLACER &nbsp;|&nbsp; [ESPACE] = FRAPPER &nbsp;|&nbsp; MAINTENIR = ULTRA SMASH ⚡</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+// ══════════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════════
+const CHARS=[
+  {name:"MARIO",   type:"ALL-ROUND", spd:1.0,pw:1.0,ct:1.0,
+   img:"https://mario.wiki.gallery/images/thumb/2/29/MTUS_Mario.png/120px-MTUS_Mario.png"},
+  {name:"LUIGI",   type:"TECHNIQUE", spd:.93,pw:.9, ct:1.3,
+   img:"https://mario.wiki.gallery/images/thumb/e/ed/MTUS_Luigi.png/120px-MTUS_Luigi.png"},
+  {name:"PEACH",   type:"PRÉCISION", spd:.86,pw:.82,ct:1.42,
+   img:"https://mario.wiki.gallery/images/thumb/c/c3/MTUS_Peach.png/120px-MTUS_Peach.png"},
+  {name:"BOWSER",  type:"PUISSANCE", spd:.72,pw:1.65,ct:.7,
+   img:"https://mario.wiki.gallery/images/thumb/9/9a/MTUS_Bowser.png/120px-MTUS_Bowser.png"},
+  {name:"TOAD",    type:"VITESSE",   spd:1.45,pw:.74,ct:1.12,
+   img:"https://mario.wiki.gallery/images/thumb/4/4b/MTUS_Toad.png/120px-MTUS_Toad.png"},
+  {name:"YOSHI",   type:"ALL-ROUND", spd:1.1,pw:.95,ct:1.1,
+   img:"https://mario.wiki.gallery/images/thumb/5/5a/MTUS_Yoshi.png/120px-MTUS_Yoshi.png"},
+  {name:"WALUIGI", type:"TECHNIQUE", spd:1.05,pw:1.1,ct:1.2,
+   img:"https://mario.wiki.gallery/images/thumb/1/1d/MTUS_Waluigi.png/120px-MTUS_Waluigi.png"},
+  {name:"WARIO",   type:"PUISSANCE", spd:.78,pw:1.5,ct:.72,
+   img:"https://mario.wiki.gallery/images/thumb/e/ef/MTUS_Wario.png/120px-MTUS_Wario.png"},
+];
+
+const COURTS=[
+  {name:"🌿 GAZON",    surf:0x2d7a34,dark:0x1e5c24,lines:0xFFFFFF,sky0:0x6abfe8,sky1:0x3a8fc4,
+   crowd:[0xFF5252,0x69F0AE,0x448AFF,0xFFFF00],ads:['#E60026','#0055BF','#4CAF50','#FF9800']},
+  {name:"🔶 TERRE",    surf:0xc94012,dark:0x8c2900,lines:0xFFFFFF,sky0:0xe8b86a,sky1:0xc48839,
+   crowd:[0xFF8A65,0xFFCC02,0xA1887F,0xEF9A9A],ads:['#8B4513','#D2691E','#FF6347','#DEB887']},
+  {name:"🔷 DUR",      surf:0x1055c0,dark:0x0a3d8f,lines:0xFFFF00,sky0:0x7fb0d4,sky1:0x3a6a90,
+   crowd:[0x40C4FF,0xE040FB,0xFF4081,0x69F0AE],ads:['#1565C0','#283593','#0288D1','#01579B']},
+  {name:"❄️ GLACE",    surf:0x9fd8f0,dark:0x6ab0d8,lines:0x0055aa,sky0:0xc0e8f8,sky1:0x7abcd8,
+   crowd:[0xE0F7FA,0x80DEEA,0xB2EBF2,0xFFFFFF],ads:['#006064','#00838F','#0097A7','#00ACC1']},
+  {name:"🍄 CHAMPIG.", surf:0xf07e10,dark:0xc05800,lines:0xFFFFFF,sky0:0xffd080,sky1:0xffa030,
+   crowd:[0xFF5722,0xFF9800,0xFFEB3B,0xFF5252],ads:['#E65100','#BF360C','#FF6D00','#FFAB00']},
+  {name:"🏆 STADE",    surf:0x1a6e1a,dark:0x124e12,lines:0xFFFFFF,sky0:0x1a2040,sky1:0x0a1028,
+   crowd:[0xFFD700,0xFF4500,0x00BFFF,0xFF69B4],ads:['#FFD700','#FF4500','#8B0000','#00008B']},
+];
+
+const SL=["0","15","30","40","AD"];
+
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let selChar=0,selCourt=0,diff="easy",twoP=false,running=false;
+
+// ══════════════════════════════════════════
+//  MENU BOKEH
+// ══════════════════════════════════════════
+const bokehEl=document.getElementById("menu-bokeh");
+const bkColors=["rgba(255,200,0,.12)","rgba(255,80,0,.08)","rgba(0,100,255,.1)","rgba(0,200,80,.07)"];
+for(let i=0;i<12;i++){
+  const b=document.createElement("div");b.className="bk";
+  const sz=80+Math.random()*180;
+  b.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*80}%;
+    width:${sz}px;height:${sz}px;background:${bkColors[i%4]};
+    animation-duration:${5+Math.random()*8}s;animation-delay:${Math.random()*6}s;`;
+  bokehEl.appendChild(b);
+}
+
+// ══════════════════════════════════════════
+//  CHAR GRID
+// ══════════════════════════════════════════
+const charGrid=document.getElementById("charGrid");
+CHARS.forEach((c,i)=>{
+  const d=document.createElement("div");
+  d.className="char-card"+(i===0?" sel":"");
+  d.innerHTML=`<span class="sel-crown">👑</span>
+    <img src="${c.img}" alt="${c.name}" loading="lazy"
+         style="animation-delay:${i*0.22}s">
+    <div class="char-name">${c.name}</div>
+    <div class="char-type">${c.type}</div>`;
+  d.onclick=()=>{
+    selChar=i;
+    document.querySelectorAll(".char-card").forEach((x,j)=>x.classList.toggle("sel",j===i));
+  };
+  charGrid.appendChild(d);
+});
+
+// ══════════════════════════════════════════
+//  COURT ROW
+// ══════════════════════════════════════════
+const courtRow=document.getElementById("courtRow");
+COURTS.forEach((c,i)=>{
+  const b=document.createElement("div");
+  b.className="court-btn"+(i===0?" sel":"");
+  const dot=document.createElement("div");dot.className="court-dot";
+  dot.style.background="#"+COURTS[i].surf.toString(16).padStart(6,'0');
+  b.appendChild(dot);b.appendChild(document.createTextNode(c.name));
+  b.onclick=()=>{
+    selCourt=i;
+    document.querySelectorAll(".court-btn").forEach((x,j)=>x.classList.toggle("sel",j===i));
+  };
+  courtRow.appendChild(b);
+});
+
+// ══════════════════════════════════════════
+//  DIFF BUTTONS
+// ══════════════════════════════════════════
+document.querySelectorAll(".diff-btn").forEach(b=>{
+  b.onclick=()=>{
+    diff=b.dataset.d;
+    document.querySelectorAll(".diff-btn").forEach(x=>x.classList.remove("sel"));
+    b.classList.add("sel");
+  };
+});
+
+document.getElementById("btnPlay").onclick=()=>startGame(false);
+document.getElementById("btn2P").onclick=()=>startGame(true);
+document.getElementById("btnReplay").onclick=()=>startGame(twoP);
+document.getElementById("btnMenu").onclick=()=>{
+  document.getElementById("gameover").style.display="none";
+  document.getElementById("menu").style.display="flex";
+  document.getElementById("hud").style.display="none";
+  document.getElementById("pbar-wrap").style.display="none";
+  running=false;
+};
+
+// ══════════════════════════════════════════
+//  THREE.JS SETUP
+// ══════════════════════════════════════════
+const canvas=document.getElementById("c");
+const W=()=>window.innerWidth,H=()=>window.innerHeight;
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(50,W()/H(),.1,500);
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:"high-performance"});
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(W(),H());
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.1;
+
+window.addEventListener("resize",()=>{
+  camera.aspect=W()/H();camera.updateProjectionMatrix();
+  renderer.setSize(W(),H());
+});
+
+// ── LIGHTS ──
+const amb=new THREE.AmbientLight(0xffeedd,.45);scene.add(amb);
+
+const sun=new THREE.DirectionalLight(0xFFFAE0,1.4);
+sun.position.set(8,22,6);sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.left=-30;sun.shadow.camera.right=30;
+sun.shadow.camera.top=30;sun.shadow.camera.bottom=-30;
+sun.shadow.camera.far=90;sun.shadow.bias=-.0004;
+scene.add(sun);
+
+const fill=new THREE.DirectionalLight(0xAADDFF,.3);fill.position.set(-6,10,-8);scene.add(fill);
+const backL=new THREE.DirectionalLight(0xFFEEAA,.18);backL.position.set(0,5,12);scene.add(backL);
+
+// Arena spot lights (ceiling)
+const spotCols=[0xFFFFEE,0xFFEECC,0xFFFFFF];
+const spots=[];
+for(let i=0;i<3;i++){
+  const sp=new THREE.SpotLight(spotCols[i],.8,60,Math.PI*.18,.4);
+  sp.position.set(-6+i*6,16,0);sp.target.position.set(-6+i*6,0,0);
+  scene.add(sp);scene.add(sp.target);spots.push(sp);
+}
+
+// ══════════════════════════════════════════
+//  COURT BUILDER — Ultra Smash stadium style
+// ══════════════════════════════════════════
+let courtObjs=[];
+function clearCourt(){courtObjs.forEach(o=>scene.remove(o));courtObjs=[];}
+
+function buildCourt(ci){
+  clearCourt();
+  const ct=COURTS[ci];
+
+  // Sky gradient via background
+  scene.background=new THREE.Color(ct.sky1);
+  scene.fog=new THREE.Fog(ct.sky1,60,140);
+
+  // ── GROUND ──
+  const groundM=new THREE.MeshLambertMaterial({color:new THREE.Color(ct.sky1).multiplyScalar(.5)});
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(500,500),groundM);
+  ground.rotation.x=-Math.PI/2;ground.position.y=-.05;
+  scene.add(ground);courtObjs.push(ground);
+
+  // ── COURT SURFACE ──
+  const surfM=new THREE.MeshLambertMaterial({color:ct.surf});
+  const surf=new THREE.Mesh(new THREE.PlaneGeometry(26,13),surfM);
+  surf.rotation.x=-Math.PI/2;surf.receiveShadow=true;
+  scene.add(surf);courtObjs.push(surf);
+
+  // Service boxes (slightly darker)
+  const darkM=new THREE.MeshLambertMaterial({color:ct.dark});
+  [-3.5,3.5].forEach(ox=>{
+    const sb=new THREE.Mesh(new THREE.PlaneGeometry(7,9),darkM);
+    sb.rotation.x=-Math.PI/2;sb.position.set(ox,.008,0);
+    scene.add(sb);courtObjs.push(sb);
+  });
+
+  // ── LINES ──
+  const lm=new THREE.MeshBasicMaterial({color:ct.lines,depthWrite:false});
+  function line(w,h,x,z){
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),lm);
+    m.rotation.x=-Math.PI/2;m.position.set(x,.022,z);
+    scene.add(m);courtObjs.push(m);
+  }
+  line(.055,13,-13,0);line(.055,13,13,0);     // sidelines
+  line(26,.055,0,-6.5);line(26,.055,0,6.5);   // baselines
+  line(.055,13,0,0);                           // center (net)
+  line(14,.055,0,-4.5);line(14,.055,0,4.5);   // service lines
+  line(.055,9,-7,0);line(.055,9,7,0);          // center service
+  line(.45,.055,-13,0);line(.45,.055,13,0);   // center marks
+
+  // ── NET ──
+  const poleM=new THREE.MeshLambertMaterial({color:0xDDDDDD});
+  [-6.6,6.6].forEach(z=>{
+    const p=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,2.6,8),poleM);
+    p.position.set(0,1.3,z);p.castShadow=true;scene.add(p);courtObjs.push(p);
+  });
+  const netGroup=new THREE.Group();
+  // Net mesh (grid look)
+  const netW=13.2,netH=1.58,netSegs=18;
+  const netM2=new THREE.MeshBasicMaterial({color:0xFFFFFF,transparent:true,opacity:.75,side:THREE.DoubleSide});
+  for(let i=0;i<=netSegs;i++){
+    const vl=new THREE.Mesh(new THREE.PlaneGeometry(.012,netH),netM2);
+    vl.position.set(0,netH/2,(i/netSegs-.5)*netW);netGroup.add(vl);
+  }
+  for(let r=0;r<=8;r++){
+    const hl=new THREE.Mesh(new THREE.PlaneGeometry(netW,.012),netM2);
+    hl.position.set(0,r*netH/8,0);hl.rotation.y=Math.PI/2;netGroup.add(hl);
+  }
+  // Top cable
+  const topCableM=new THREE.MeshLambertMaterial({color:0xEEEEEE});
+  const tc=new THREE.Mesh(new THREE.CylinderGeometry(.03,.03,netW,6),topCableM);
+  tc.rotation.x=Math.PI/2;tc.position.y=netH;netGroup.add(tc);
+  netGroup.position.set(0,.09,0);
+  scene.add(netGroup);courtObjs.push(netGroup);
+
+  // ── FLOOR AROUND COURT ──
+  const floorColHex=new THREE.Color(ct.surf).multiplyScalar(.55);
+  const floorM=new THREE.MeshLambertMaterial({color:floorColHex});
+  const flAreas=[
+    {w:60,h:20,x:0,z:-16.5},{w:60,h:20,x:0,z:16.5},
+    {w:17,h:13,x:-21.5,z:0},{w:17,h:13,x:21.5,z:0}
+  ];
+  flAreas.forEach(a=>{
+    const fl=new THREE.Mesh(new THREE.PlaneGeometry(a.w,a.h),floorM);
+    fl.rotation.x=-Math.PI/2;fl.position.set(a.x,.003,a.z);
+    fl.receiveShadow=true;scene.add(fl);courtObjs.push(fl);
+  });
+
+  // ── STADIUM: LOWER TIER ──
+  const concreteM=new THREE.MeshLambertMaterial({color:0x888888});
+  const concreteD=new THREE.MeshLambertMaterial({color:0x666666});
+
+  // Lower ring (4 sides — angled like real stadium)
+  // Far side (behind P2, deep background)
+  function stand(w,h,d,x,y,z,rx,ry=0){
+    const g=new THREE.BoxGeometry(w,h,d);
+    const m=new THREE.Mesh(g,concreteM);
+    m.position.set(x,y,z);m.rotation.x=rx;m.rotation.y=ry;
+    m.castShadow=true;m.receiveShadow=true;
+    scene.add(m);courtObjs.push(m);return m;
+  }
+
+  // --- LOWER TIER ---
+  // Far (z+)
+  stand(60,8,10,0,4,29,-Math.PI*.12);
+  // Near (z-)
+  stand(60,8,10,0,4,-29,Math.PI*.12);
+  // Left (x-)
+  stand(10,8,28,32,4,0,0,Math.PI*.12);
+  // Right (x+)
+  stand(10,8,28,-32,4,0,0,-Math.PI*.12);
+
+  // --- UPPER TIER ---
+  const upperM=new THREE.MeshLambertMaterial({color:0x777777});
+  function standU(w,h,d,x,y,z,rx,ry=0){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),upperM);
+    m.position.set(x,y,z);m.rotation.x=rx;m.rotation.y=ry;
+    scene.add(m);courtObjs.push(m);return m;
+  }
+  standU(60,7,9,0,14,38,-Math.PI*.18);
+  standU(60,7,9,0,14,-38,Math.PI*.18);
+  standU(9,7,32,42,14,0,0,Math.PI*.18);
+  standU(9,7,32,-42,14,0,0,-Math.PI*.18);
+
+  // Seat rows (colored strips on stands)
+  const seatColors=[0x1565C0,0xCC0000,0xE8E8E8,0x2E7D32,0xFFB300];
+  const seatM=seatColors.map(c=>new THREE.MeshLambertMaterial({color:c}));
+
+  // Rows on far stand (upper/lower)
+  for(let r=0;r<5;r++){
+    const sr=new THREE.Mesh(new THREE.BoxGeometry(58,.35,1.2),seatM[r%5]);
+    sr.position.set(0,1+r*1.38,24.8+r*.5);scene.add(sr);courtObjs.push(sr);
+  }
+  for(let r=0;r<5;r++){
+    const sr=new THREE.Mesh(new THREE.BoxGeometry(58,.35,1.2),seatM[r%5]);
+    sr.position.set(0,1+r*1.38,-24.8-r*.5);scene.add(sr);courtObjs.push(sr);
+  }
+  for(let r=0;r<5;r++){
+    const sr=new THREE.Mesh(new THREE.BoxGeometry(1.2,.35,26),seatM[r%5]);
+    sr.position.set(27.8+r*.5,1+r*1.38,0);scene.add(sr);courtObjs.push(sr);
+    const sr2=new THREE.Mesh(new THREE.BoxGeometry(1.2,.35,26),seatM[r%5]);
+    sr2.position.set(-27.8-r*.5,1+r*1.38,0);scene.add(sr2);courtObjs.push(sr2);
+  }
+
+  // ── CROWD (spheres) ──
+  const crowdCols=ct.crowd.map(c=>new THREE.MeshBasicMaterial({color:c}));
+  const crowdGeo=new THREE.SphereGeometry(.24,5,4);
+  for(let i=0;i<200;i++){
+    const cm=crowdCols[i%crowdCols.length];
+    const cr=new THREE.Mesh(crowdGeo,cm);
+    const side=Math.floor(i/50);
+    let px,py,pz;
+    if(side===0){px=(Math.random()-.5)*56;py=1.8+Math.random()*5.5;pz=23+Math.random()*12;}
+    else if(side===1){px=(Math.random()-.5)*56;py=1.8+Math.random()*5.5;pz=-(23+Math.random()*12);}
+    else if(side===2){px=26+Math.random()*10;py=1.5+Math.random()*5;pz=(Math.random()-.5)*24;}
+    else{px=-(26+Math.random()*10);py=1.5+Math.random()*5;pz=(Math.random()-.5)*24;}
+    cr.position.set(px,py,pz);
+    scene.add(cr);courtObjs.push(cr);
+  }
+
+  // ── BANNERS / AD BOARDS ──
+  ct.ads.forEach((col,i)=>{
+    // Side banners at court edge
+    const bm=new THREE.MeshLambertMaterial({color:parseInt(col.replace('#',''),16)});
+    const bz=[-5,-1.5,1.5,5][i];
+    const banner=new THREE.Mesh(new THREE.BoxGeometry(.15,1.8,2.2),bm);
+    banner.position.set(14,.9,bz);scene.add(banner);courtObjs.push(banner);
+    const banner2=new THREE.Mesh(new THREE.BoxGeometry(.15,1.8,2.2),bm);
+    banner2.position.set(-14,.9,bz);scene.add(banner2);courtObjs.push(banner2);
+    // Far banners (behind net on stands)
+    const bfar=new THREE.Mesh(new THREE.BoxGeometry(9,.6,.2),bm);
+    bfar.position.set(-13.5+i*9,3.2,21);scene.add(bfar);courtObjs.push(bfar);
+  });
+
+  // ── SCOREBOARD (far wall) ──
+  const sbBg=new THREE.Mesh(new THREE.BoxGeometry(12,3.6,.2),
+    new THREE.MeshLambertMaterial({color:0x111111}));
+  sbBg.position.set(0,10.5,24.4);scene.add(sbBg);courtObjs.push(sbBg);
+  const sbFrame=new THREE.Mesh(new THREE.BoxGeometry(12.8,4.2,.15),
+    new THREE.MeshLambertMaterial({color:0xFFD700}));
+  sbFrame.position.set(0,10.5,24.3);scene.add(sbFrame);courtObjs.push(sbFrame);
+  const sbRedL=new THREE.Mesh(new THREE.BoxGeometry(5.5,2.6,.15),
+    new THREE.MeshLambertMaterial({color:0xCC0000}));
+  sbRedL.position.set(-3,10.5,24.5);scene.add(sbRedL);courtObjs.push(sbRedL);
+  const sbBlueR=new THREE.Mesh(new THREE.BoxGeometry(5.5,2.6,.15),
+    new THREE.MeshLambertMaterial({color:0x0033BB}));
+  sbBlueR.position.set(3,10.5,24.5);scene.add(sbBlueR);courtObjs.push(sbBlueR);
+
+  // ── CEILING / ROOF ──
+  const roofM=new THREE.MeshLambertMaterial({color:0x181818,side:THREE.BackSide});
+  const roof=new THREE.Mesh(new THREE.BoxGeometry(100,6,100),roofM);
+  roof.position.set(0,22,0);scene.add(roof);courtObjs.push(roof);
+
+  // Roof beams
+  const beamM=new THREE.MeshLambertMaterial({color:0x333333});
+  for(let bx=-20;bx<=20;bx+=20){
+    const beam=new THREE.Mesh(new THREE.BoxGeometry(.6,.6,80),beamM);
+    beam.position.set(bx,19,0);scene.add(beam);courtObjs.push(beam);
+  }
+  for(let bz=-30;bz<=30;bz+=30){
+    const beam=new THREE.Mesh(new THREE.BoxGeometry(80,.6,.6),beamM);
+    beam.position.set(0,19,bz);scene.add(beam);courtObjs.push(beam);
+  }
+
+  // Ceiling lights (bright panels)
+  const lightPanelM=new THREE.MeshBasicMaterial({color:0xFFFDE7});
+  for(let lx=-12;lx<=12;lx+=12){
+    for(let lz=-8;lz<=8;lz+=8){
+      const lp=new THREE.Mesh(new THREE.BoxGeometry(2,.15,4.5),lightPanelM);
+      lp.position.set(lx,18.5,lz);scene.add(lp);courtObjs.push(lp);
+      // Lens flare glow sphere
+      const gm=new THREE.Mesh(new THREE.SphereGeometry(1.2,8,6),
+        new THREE.MeshBasicMaterial({color:0xFFFFCC,transparent:true,opacity:.12}));
+      gm.position.set(lx,17.5,lz);scene.add(gm);courtObjs.push(gm);
+    }
+  }
+
+  // ── SUPER MUSHROOMS on stands (Mario Tennis vibe) ──
+  const mushroomRed=new THREE.MeshLambertMaterial({color:0xEE1111});
+  const mushroomWhite=new THREE.MeshLambertMaterial({color:0xFFFFFF});
+  for(let m=0;m<6;m++){
+    const mx=(m-2.5)*10;
+    const cap=new THREE.Mesh(new THREE.SphereGeometry(.55,8,6),mushroomRed);
+    cap.position.set(mx,7.5,20);scene.add(cap);courtObjs.push(cap);
+    const stem=new THREE.Mesh(new THREE.CylinderGeometry(.2,.25,.6,6),mushroomWhite);
+    stem.position.set(mx,6.9,20);scene.add(stem);courtObjs.push(stem);
+  }
+
+  // ── STAR BALLS decoration in corners ──
+  const goldM=new THREE.MeshLambertMaterial({color:0xFFD700});
+  [[13,1,-6.5],[-13,1,-6.5],[13,1,6.5],[-13,1,6.5]].forEach(([x,y,z])=>{
+    const s=new THREE.Mesh(new THREE.SphereGeometry(.22,10,8),goldM);
+    s.position.set(x,y,z);scene.add(s);courtObjs.push(s);
+  });
+}
+
+// ══════════════════════════════════════════
+//  TEXTURE LOADER / SPRITES
+// ══════════════════════════════════════════
+const texLoader=new THREE.TextureLoader();
+const texCache={};
+function loadTex(url,cb){
+  if(texCache[url]){cb(texCache[url]);return;}
+  texLoader.load(url,t=>{
+    t.colorSpace=THREE.SRGBColorSpace;
+    texCache[url]=t;cb(t);
+  },undefined,()=>{
+    const cv=document.createElement("canvas");cv.width=128;cv.height=160;
+    const ctx=cv.getContext("2d");
+    ctx.fillStyle="#E60026";ctx.fillRect(0,0,128,160);
+    ctx.fillStyle="#fff";ctx.font="bold 32px Arial";ctx.textAlign="center";
+    ctx.fillText("?",64,90);
+    const t2=new THREE.CanvasTexture(cv);texCache[url]=t2;cb(t2);
+  });
+}
+
+// Character sprite with animation rig
+function makeSprite(charIdx,scale=1){
+  const c=CHARS[charIdx];
+  const group=new THREE.Group();
+  group.charIdx=charIdx;
+
+  const geo=new THREE.PlaneGeometry(1.35*scale,1.8*scale);
+  const mat=new THREE.MeshBasicMaterial({transparent:true,side:THREE.DoubleSide,depthWrite:false,opacity:0});
+  const mesh=new THREE.Mesh(geo,mat);
+  mesh.position.y=0.9*scale;
+  group.add(mesh);
+  group.spriteMesh=mesh;
+
+  loadTex(c.img,tex=>{mat.map=tex;mat.opacity=1;mat.needsUpdate=true;});
+
+  // Shadow circle
+  const shd=new THREE.Mesh(
+    new THREE.CircleGeometry(.5*scale,12),
+    new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.35,depthWrite:false})
+  );
+  shd.rotation.x=-Math.PI/2;shd.position.y=.008;
+  group.add(shd);
+
+  // Idle bob params
+  group._bobOffset=Math.random()*Math.PI*2;
+  group._swingT=0;
+  group._swinging=false;
+  group._swingDir=1;
+
+  return group;
+}
+
+// ── BALL ──
+function makeBall(){
+  const g=new THREE.Group();
+  const bm=new THREE.MeshLambertMaterial({color:0xCCEE22});
+  const ball=new THREE.Mesh(new THREE.SphereGeometry(.2,14,14),bm);
+  ball.castShadow=true;g.add(ball);
+  const seamM=new THREE.MeshBasicMaterial({color:0xFFFFFF,transparent:true,opacity:.55});
+  const s1=new THREE.Mesh(new THREE.TorusGeometry(.19,.014,5,20),seamM);g.add(s1);
+  const s2=new THREE.Mesh(new THREE.TorusGeometry(.19,.014,5,20),seamM);
+  s2.rotation.y=Math.PI/2;g.add(s2);
+  const shd=new THREE.Mesh(new THREE.CircleGeometry(.2,10),
+    new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.3,depthWrite:false}));
+  shd.rotation.x=-Math.PI/2;
+  g.shd=shd;scene.add(shd);
+  return g;
+}
+
+// ── TRAIL ──
+let trail=[];
+const trailMeshes=[];
+function makeTrail(){
+  trailMeshes.forEach(t=>scene.remove(t));trailMeshes.length=0;trail=[];
+  for(let i=0;i<18;i++){
+    const t=new THREE.Mesh(
+      new THREE.SphereGeometry(.14-.005*i,5,4),
+      new THREE.MeshBasicMaterial({color:0xFFFF00,transparent:true,opacity:0,depthWrite:false})
+    );
+    scene.add(t);trailMeshes.push(t);
+  }
+}
+
+// ══════════════════════════════════════════
+//  GAME STATE
+// ══════════════════════════════════════════
+let p1=null,p2=null,ballObj=null;
+let p1x=-9.5,p1z=0,p2x=9.5,p2z=0;
+let bx=0,by=1.5,bz=0,bvx=0,bvy=0,bvz=0;
+let serving=true,srvSide=1,inRally=false;
+let p1pts=0,p2pts=0,p1g=0,p2g=0,p1s=0,p2s=0;
+let power=0,smashMode=false,hcool=0;
+let bounces=0,rally=0,lastHit=0;
+let stats={aces1:0,aces2:0,sm1:0,sm2:0,maxRally:0};
+let camTX=-18,camTY=9.5,camTZ=0;
+let t0=performance.now();
+
+// ══════════════════════════════════════════
+//  INPUT
+// ══════════════════════════════════════════
+const K={};
+document.addEventListener("keydown",e=>{K[e.code]=true;
+  if(["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();});
+document.addEventListener("keyup",e=>{delete K[e.code];});
+
+// ══════════════════════════════════════════
+//  START GAME
+// ══════════════════════════════════════════
+function startGame(two){
+  twoP=two;
+  [p1,p2].forEach(s=>{if(s){scene.remove(s);}});
+  if(ballObj){scene.remove(ballObj);if(ballObj.shd)scene.remove(ballObj.shd);}
+  trailMeshes.forEach(t=>scene.remove(t));trailMeshes.length=0;
+
+  buildCourt(selCourt);
+
+  const p2ci=two?((selChar+1)%CHARS.length):Math.floor(Math.random()*CHARS.length);
+  p1=makeSprite(selChar,1);p1.position.set(-9.5,0,0);scene.add(p1);
+  p2=makeSprite(p2ci,1);p2.position.set(9.5,0,0);scene.add(p2);
+  ballObj=makeBall();scene.add(ballObj);
+  makeTrail();
+
+  p1x=-9.5;p1z=0;p2x=9.5;p2z=0;
+  p1pts=0;p2pts=0;p1g=0;p2g=0;p1s=0;p2s=0;
+  power=0;smashMode=false;hcool=0;
+  bounces=0;rally=0;lastHit=0;
+  stats={aces1:0,aces2:0,sm1:0,sm2:0,maxRally:0};
+  serving=true;srvSide=1;inRally=false;
+
+  document.getElementById("menu").style.display="none";
+  document.getElementById("gameover").style.display="none";
+  document.getElementById("hud").style.display="block";
+  document.getElementById("pbar-wrap").style.display="flex";
+  document.getElementById("n1").textContent=CHARS[selChar].name;
+  document.getElementById("n2").textContent=two?CHARS[p2ci].name:"CPU";
+  updHUD();running=true;
+  setServe();showMsg("SERVEZ! [ESPACE]",2200);
+}
+
+function setServe(){
+  bx=srvSide===1?p1x:p2x;by=1.5;bz=srvSide===1?p1z:p2z;
+  bvx=0;bvy=0;bvz=0;
+  serving=true;inRally=false;power=0;
+  if(ballObj)ballObj.position.set(bx,by,bz);
+}
+
+// ══════════════════════════════════════════
+//  SCORING
+// ══════════════════════════════════════════
+function ptWon(w){
+  if(w===1)p1pts++;else p2pts++;
+  stats.maxRally=Math.max(stats.maxRally,rally);
+  if(rally===0){if(w===1)stats.aces1++;else stats.aces2++;showMsg("ACE! 🎾",1400);}
+  if(p1pts>=4&&p2pts>=4){
+    const d=p1pts-p2pts;
+    if(d>=2){gameWon(1);return;}if(d<=-2){gameWon(2);return;}
+  }else if(p1pts>=4&&p2pts<3){gameWon(1);return;}
+  else if(p2pts>=4&&p1pts<3){gameWon(2);return;}
+  updHUD();srvSide=w;
+  setTimeout(()=>{setServe();showMsg("SERVEZ!",1400);},1400);
+}
+function gameWon(w){
+  if(w===1)p1g++;else p2g++;p1pts=0;p2pts=0;
+  if((w===1&&p1g>=6&&p1g-p2g>=2)||(w===2&&p2g>=6&&p2g-p1g>=2)){setWon(w);return;}
+  if(p1g>=7||p2g>=7){setWon(w);return;}
+  const nm=w===1?CHARS[selChar].name:"CPU";
+  showMsg(`JEU ${nm}!`,1600);updHUD();
+  setTimeout(()=>{setServe();showMsg("SERVEZ!",1400);},2000);
+}
+function setWon(w){
+  if(w===1)p1s++;else p2s++;p1g=0;p2g=0;updHUD();
+  if(p1s>=2||p2s>=2){endMatch(w);return;}
+  showMsg(w===1?"SET GAGNÉ! 🏆":"SET PERDU...",2200);
+  setTimeout(()=>{setServe();showMsg("NOUVEAU SET!",1800);},2800);
+}
+function endMatch(w){
+  running=false;
+  document.getElementById("gameover").style.display="flex";
+  document.getElementById("go-title").textContent=w===1?"VICTOIRE! 🏆":"DÉFAITE...";
+  document.getElementById("go-sub").textContent=`${p1s} - ${p2s} sets`;
+  document.getElementById("go-stats").textContent=`Aces: ${stats.aces1} | Smashes: ${stats.sm1} | Rally max: ${stats.maxRally} échanges`;
+  document.getElementById("pbar-wrap").style.display="none";
+}
+function updHUD(){
+  let l1,l2;
+  if(p1pts>=4&&p2pts>=4){l1=p1pts>p2pts?"AD":"40";l2=p2pts>p1pts?"AD":"40";}
+  else{l1=SL[Math.min(p1pts,4)];l2=SL[Math.min(p2pts,4)];}
+  document.getElementById("pt1").textContent=l1;
+  document.getElementById("pt2").textContent=l2;
+  document.getElementById("g1").textContent="Jeux: "+p1g;
+  document.getElementById("g2").textContent="Jeux: "+p2g;
+  const s1El=document.getElementById("set1"),s2El=document.getElementById("set2");
+  s1El.innerHTML="";s2El.innerHTML="";
+  for(let i=0;i<2;i++){
+    const d1=document.createElement("div");d1.className="s-pip"+(i<p1s?" w":"");s1El.appendChild(d1);
+    const d2=document.createElement("div");d2.className="s-pip"+(i<p2s?" w":"");s2El.appendChild(d2);
+  }
+}
+
+// ══════════════════════════════════════════
+//  FX
+// ══════════════════════════════════════════
+let msgTimer=null;
+function showMsg(t,d=2000){
+  const m=document.getElementById("msg");
+  m.textContent=t;m.style.opacity="1";
+  clearTimeout(msgTimer);msgTimer=setTimeout(()=>m.style.opacity="0",d);
+}
+function smashFX(ultra){
+  const f=document.getElementById("smash-flash");
+  f.style.transition="none";f.style.opacity=ultra?.9:.5;
+  requestAnimationFrame(()=>{f.style.transition="opacity .14s";f.style.opacity="0";});
+  showMsg(ultra?"⚡ ULTRA SMASH! ⚡":"💥 SMASH!",900);
+}
+function showCombo(n){
+  if(n<3)return;
+  const c=document.getElementById("combo-disp");
+  c.textContent=`🔥 x${n} RALLY`;c.style.opacity="1";
+  clearTimeout(c._t);c._t=setTimeout(()=>c.style.opacity="0",1400);
+}
+function updPbar(){
+  const f=document.getElementById("pbar-fill");
+  f.style.width=(power*100)+"%";
+  if(power>.85)f.style.background="linear-gradient(90deg,#FF0000,#FF6600,#FFD700)";
+  else if(power>.55)f.style.background="linear-gradient(90deg,#FF6600,#FFEE00)";
+  else f.style.background="linear-gradient(90deg,#22CC44,#88FF44)";
+}
+
+// ══════════════════════════════════════════
+//  AI
+// ══════════════════════════════════════════
+function getAI(){
+  return{
+    easy:  {spd:.04, react:.3, err:.45,smash:.06},
+    normal:{spd:.085,react:.16,err:.2, smash:.28},
+    hard:  {spd:.13, react:.07,err:.07,smash:.55},
+    ultra: {spd:.18, react:.02,err:.01,smash:.9},
+  }[diff];
+}
+function aiHit(){
+  const ai=getAI();
+  const isSm=Math.random()<ai.smash&&by>1.9&&rally>1;
+  const isU=isSm&&Math.random()<.3&&by>2.4;
+  const err=(Math.random()-.5)*ai.err*5;
+  const pw=.26+Math.random()*.1;
+  bvx=-(pw+(isSm?.2:0)+(isU?.14:0));
+  bvy=isU?.03:isSm?.06:.18+Math.random()*.06;
+  bvz=(p1z+err-bz)*.075;
+  lastHit=2;hcool=8;bounces=0;rally++;
+  stats.maxRally=Math.max(stats.maxRally,rally);
+  if(isSm){stats.sm2++;smashFX(isU);}
+  triggerSwing(p2,false);
+}
+
+// ══════════════════════════════════════════
+//  SPRITE ANIMATION
+// ══════════════════════════════════════════
+function faceCamera(spr){
+  if(!spr||!spr.spriteMesh)return;
+  spr.spriteMesh.rotation.y=Math.atan2(
+    camera.position.x-spr.position.x,
+    camera.position.z-spr.position.z
+  );
+}
+
+function triggerSwing(spr,isLeft){
+  if(!spr)return;
+  spr._swinging=true;spr._swingT=0;spr._swingDir=isLeft?1:-1;
+}
+
+function animSprites(t,dt){
+  [p1,p2].forEach(spr=>{
+    if(!spr||!spr.spriteMesh)return;
+    faceCamera(spr);
+    const sm=spr.spriteMesh;
+
+    if(spr._swinging){
+      spr._swingT+=dt*.08;
+      const prog=spr._swingT;
+      if(prog<1){
+        // Swing arc: tilt then return
+        const tilt=Math.sin(prog*Math.PI)*0.55*spr._swingDir;
+        sm.rotation.z=tilt;
+        // Squish during swing
+        const squish=1+Math.sin(prog*Math.PI)*.15;
+        sm.scale.set(squish,1/squish,1);
+      }else{
+        sm.rotation.z*=.8;sm.scale.lerp(new THREE.Vector3(1,1,1),.15);
+        if(Math.abs(sm.rotation.z)<.01&&Math.abs(sm.scale.x-1)<.01)spr._swinging=false;
+      }
+    }else{
+      // Idle bob
+      const bob=Math.sin(t*.0025+spr._bobOffset)*.07;
+      sm.position.y=0.9+bob;
+      sm.rotation.z*=.9;
+      sm.scale.lerp(new THREE.Vector3(1,1,1),.1);
+    }
+  });
+}
+
+// ══════════════════════════════════════════
+//  CAMERA INITIAL
+// ══════════════════════════════════════════
+camera.position.set(-18,9.5,0);
+camera.lookAt(0,1.5,0);
+
+// ══════════════════════════════════════════
+//  MAIN LOOP
+// ══════════════════════════════════════════
+function loop(t){
+  requestAnimationFrame(loop);
+  const dt=Math.min((t-(t0||t))/16.67,3);t0=t;
+
+  if(!running){
+    renderer.render(scene,camera);return;
+  }
+
+  const ch=CHARS[selChar];
+  const ai=getAI();
+
+  // ── P1 MOVEMENT ──
+  const sp=ch.spd*.17;
+  if(K["ArrowUp"]  ||K["KeyW"])p1z=Math.max(-6,p1z-sp*dt);
+  if(K["ArrowDown"] ||K["KeyS"])p1z=Math.min(6,p1z+sp*dt);
+  if(K["ArrowLeft"] ||K["KeyA"])p1x=Math.max(-12.5,p1x-sp*dt);
+  if(K["ArrowRight"]||K["KeyD"])p1x=Math.min(-1,p1x+sp*dt);
+  p1.position.set(p1x,0,p1z);
+
+  // ── P2 MOVEMENT ──
+  if(twoP){
+    const sp2=CHARS[p2.charIdx||1].spd*.17;
+    if(K["KeyI"])p2z=Math.max(-6,p2z-sp2*dt);
+    if(K["KeyK"])p2z=Math.min(6,p2z+sp2*dt);
+    if(K["KeyJ"])p2x=Math.max(1,p2x-sp2*dt);
+    if(K["KeyL"])p2x=Math.min(12.5,p2x+sp2*dt);
+  }else if(inRally){
+    const errNoise=(Math.random()-.5)*ai.err*3;
+    p2z+=(bz+errNoise-p2z)*ai.react*dt;
+    if(bvx>0&&bx>0)p2x+=(Math.min(12,bx+1)-p2x)*ai.spd*dt;
+    p2x=Math.max(1,Math.min(12.5,p2x));
+    p2z=Math.max(-6,Math.min(6,p2z));
+  }
+  p2.position.set(p2x,0,p2z);
+
+  // ── SPRITE ANIMATION ──
+  animSprites(t,dt);
+
+  // ── SERVE ──
+  if(serving){
+    const sx=srvSide===1?p1x:p2x;
+    const sz=srvSide===1?p1z:p2z;
+    const bY=1.5+Math.sin(t/260)*.22;
+    ballObj.position.set(sx,bY,sz);
+    ballObj.shd.position.set(sx,.01,sz);
+    ballObj.shd.scale.setScalar(.5);
+
+    if(K["Space"]&&srvSide===1){
+      power=Math.min(power+.05*dt*ch.pw,1);updPbar();
+    }else if(!K["Space"]&&power>.01){
+      const pw=.22+power*.38*ch.pw;
+      bvx=pw;bvy=.19;
+      bvz=(p2z-p1z)*.058+(Math.random()-.5)*.03;
+      bx=p1x;by=bY;bz=p1z;
+      serving=false;inRally=true;lastHit=1;power=0;bounces=0;rally=0;
+      updPbar();triggerSwing(p1,true);
+    }
+    // AI serve
+    if(!twoP&&srvSide===-1&&!serving||srvSide===-1){
+      power=Math.min(power+.06*dt,1);
+      if(power>=.5+Math.random()*.3){
+        bvx=-(.26+power*.2);bvy=.18;
+        bvz=(p1z-p2z)*.055+(Math.random()-.5)*.07;
+        bx=p2x;by=1.5;bz=p2z;
+        serving=false;inRally=true;lastHit=2;power=0;bounces=0;rally=0;
+        triggerSwing(p2,false);
+      }
+    }
+  }
+
+  // ── RALLY ──
+  if(inRally){
+    if(K["Space"])power=Math.min(power+.055*dt,1);
+    else power=Math.max(power-.04*dt,0);
+    smashMode=power>.78;updPbar();
+
+    bx+=bvx*dt;by+=bvy*dt;bz+=bvz*dt;
+    bvy-=.029*dt;
+    bvx*=Math.pow(.9998,dt);bvz*=Math.pow(.9997,dt);
+
+    // Bounce
+    if(by<=.19){
+      by=.19;
+      if(Math.abs(bvy)>.04){
+        bvy*=-.58;bvx*=.9;bvz*=.88;bounces++;
+      }else{
+        bvx<0?ptWon(2):ptWon(1);return;
+      }
+      if(bounces>=2){bvx<0?ptWon(2):ptWon(1);return;}
+    }
+    // Side
+    if(Math.abs(bz)>6.6){bvz*=-.85;bz=Math.sign(bz)*6.5;}
+    // Net
+    if(bx>-.22&&bx<.22&&by<1.7&&by>.08){
+      bvx*=-.5;bvy=Math.abs(bvy)*.4+.1;by=1.71;
+    }
+    // OOB
+    if(bx<-14.5){ptWon(2);return;}
+    if(bx>14.5){ptWon(1);return;}
+
+    // ── P1 HIT ──
+    const hitR=1.3;
+    if(hcool<=0&&bvx<0&&bx<p1x+hitR&&bx>p1x-.7&&Math.abs(bz-p1z)<hitR&&by<2.9&&by>.04){
+      const isSm=power>.72,isU=power>.9;
+      const pw=(.26+power*.32)*ch.pw;
+      bvx=pw+(isSm?.2:0)+(isU?.14:0);
+      bvy=isU?.025:isSm?.065:.2+power*.04;
+      bvz=(p2z+(Math.random()-.5)*2.6*(1.5-ch.ct)-bz)*.075;
+      lastHit=1;hcool=8;bounces=0;rally++;
+      showCombo(rally);
+      if(isSm){stats.sm1++;smashFX(isU);}
+      power=0;smashMode=false;
+      triggerSwing(p1,true);
+    }
+    // ── P2 HIT ──
+    if(hcool<=0&&bvx>0&&bx>p2x-hitR&&bx<p2x+.7&&Math.abs(bz-p2z)<hitR&&by<2.9&&by>.04){
+      if(twoP){
+        const isSm=K["Enter"]&&power>.6;
+        bvx=-(.27+(isSm?.18:0));bvy=isSm?.065:.18;bvz=(bz-p2z)*.1+(Math.random()-.5)*.04;
+        lastHit=2;hcool=8;bounces=0;rally++;
+        if(isSm)smashFX(false);triggerSwing(p2,false);
+      }else aiHit();
+    }
+    if(hcool>0)hcool-=dt;
+
+    ballObj.position.set(bx,by,bz);
+    ballObj.shd.position.set(bx,.01,bz);
+    ballObj.shd.scale.setScalar(Math.max(.1,.9-Math.max(0,by-.19)*.13));
+    ballObj.rotation.x+=bvx*.5*dt;
+    ballObj.rotation.z+=bvz*.3*dt;
+
+    // Trail
+    const spd=Math.sqrt(bvx*bvx+bvz*bvz);
+    trail.unshift({x:bx,y:by,z:bz});
+    if(trail.length>trailMeshes.length)trail.pop();
+    trailMeshes.forEach((tm,i)=>{
+      if(trail[i]){
+        tm.position.set(trail[i].x,trail[i].y,trail[i].z);tm.visible=true;
+        const op=(trailMeshes.length-i)/(trailMeshes.length*2.6)*Math.min(spd/.3,1);
+        tm.material.opacity=op*(smashMode?.9:.6);
+        tm.material.color.setHex(smashMode?0xFF3300:0xCCFF00);
+        const sc=1-.05*i;tm.scale.setScalar(sc);
+      }else{tm.visible=false;}
+    });
+  }
+
+  // ── CAMERA (behind P1, Ultra Smash angle) ──
+  const tgX=p1x-8.5;
+  const tgY=9.2+Math.abs(p1z)*.05;
+  const tgZ=p1z*.28+bz*.08;
+  camTX+=(tgX-camTX)*.022*dt;
+  camTY+=(tgY-camTY)*.018*dt;
+  camTZ+=(tgZ-camTZ)*.022*dt;
+  camera.position.set(camTX,camTY,camTZ);
+  camera.lookAt(bx*.08+1.5,1.4+by*.07,bz*.05);
+
+  renderer.render(scene,camera);
+}
+loop(performance.now());
+</script>
+</body>
+</html>
